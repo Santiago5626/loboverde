@@ -4,10 +4,92 @@
 
 const CombinadaModule = (() => {
 
-  const MIN_CONFIDENCE = 62;   // % mínimo de confianza
+  const MIN_CONFIDENCE = 50;   // % mínimo de confianza
   const MIN_VALUE = 0.03; // value mínimo aceptable
   const MAX_PICKS = 5;    // máximo picks en combinada
   const MIN_PICKS = 3;    // mínimo para recomendar
+
+  function oddsQuality(odds) {
+    if (!odds || odds <= 1) return 0.4;
+    if (odds < 1.35) return 0.4;
+    if (odds < 1.55) return 0.8;
+    if (odds <= 2.40) return 1.0;
+    if (odds <= 3.20) return 0.85;
+    return 0.6;
+  }
+
+  function stabilityScore(prediction) {
+    const diff = Math.abs((prediction.probs.home || 0) - (prediction.probs.away || 0));
+    if (diff > 0.35) return 1;
+    if (diff > 0.20) return 0.8;
+    return 0.5;
+  }
+
+  function volatilityPenalty(match) {
+    const league = (match.league?.name || '').toLowerCase();
+    const riskyLeagues = ['youth', 'u21', 'women', 'friendly', 'reserve', 'cup', 'copa'];
+    if (riskyLeagues.some(r => league.includes(r))) {
+      return 0.55;
+    }
+    return 1;
+  }
+
+  function marketAgreement(modelProb, odds) {
+    if (!odds || odds <= 1 || !modelProb) return 0.6;
+    const implied = 1 / odds;
+    const diff = Math.abs(modelProb - implied);
+    if (diff < 0.05) return 1;
+    if (diff < 0.10) return 0.85;
+    return 0.6;
+  }
+
+  function valueScore(value) {
+    if (!value || value <= 0) return 0.2;
+    return Math.min(1, value / 0.2 + 0.2);
+  }
+
+  function probabilityScore(prob) {
+    if (!prob) return 0.2;
+    return Math.min(1, Math.max(0, (prob - 0.4) / 0.3));
+  }
+
+  function formScore(match) {
+    const parseForm = form => {
+      if (!form) return 0.5;
+      const chars = form.toUpperCase().split('').filter(c => ['W', 'D', 'L'].includes(c));
+      if (!chars.length) return 0.5;
+      const wins = chars.filter(c => c === 'W').length;
+      const draws = chars.filter(c => c === 'D').length;
+      return Math.min(1, (wins + draws * 0.5) / chars.length);
+    };
+    return (parseForm(match.form?.home) + parseForm(match.form?.away)) / 2;
+  }
+
+  function riskIndex(item) {
+    const odds = item.pick.odds || 0;
+    const volatility = 1 - volatilityPenalty(item.prediction.match);
+    const lowConfidenceRisk = item.prediction.confidence < 60 ? (0.7 - (item.prediction.confidence - 45) / 50) : 0;
+    const lowValueRisk = item.pick.value < 0.05 ? 0.4 : 0;
+    const oddsRisk = odds > 3.5 ? 1 : odds > 2.4 ? 0.7 : 0.35;
+    return Math.min(1, (oddsRisk + volatility + lowConfidenceRisk + lowValueRisk) / 4);
+  }
+
+  function smartScore(item) {
+    const confidence = item.prediction.confidence / 100;
+    const value = valueScore(item.pick.value);
+    const probability = probabilityScore(item.pick.prob);
+    const oddsStable = oddsQuality(item.pick.odds);
+    const marketTrust = marketAgreement(item.pick.prob, item.pick.odds);
+    const form = formScore(item.prediction.match);
+    return (
+      confidence * 0.30 +
+      value * 0.25 +
+      probability * 0.20 +
+      oddsStable * 0.10 +
+      marketTrust * 0.10 +
+      form * 0.05
+    );
+  }
 
   // ── Criterio de Kelly simplificado ───────────────────────
   // f = (p*b - q) / b  donde b = cuota-1, p=prob real, q=1-p
@@ -104,8 +186,10 @@ const CombinadaModule = (() => {
 
     if (!candidates.length) return null;
 
-    // Ordenar por value y tomar el mejor
-    return candidates.sort((a, b) => b.value - a.value)[0];
+    // Ordenar por smart score y tomar el mejor
+    return candidates
+      .map(item => ({ ...item, smart: smartScore({ prediction, pick: item }) }))
+      .sort((a, b) => b.smart - a.smart)[0];
   }
 
   // ── Diversidad de mercados ────────────────────────────────
@@ -119,7 +203,11 @@ const CombinadaModule = (() => {
   function buildCombinada(predictions) {
     // Filtrar partidos con confianza mínima
     const eligible = predictions
-      .filter(p => p.confidence >= MIN_CONFIDENCE)
+      .filter(p => {
+        // Solo incluir si tiene datos reales (ML o cuotas reales)
+        const hasRealData = p.match.mlPrediction != null || p.match.odds?.isReal;
+        return hasRealData && p.confidence >= MIN_CONFIDENCE;
+      })
       .map(p => {
         const bestMarket = selectBestMarket(p);
         return bestMarket ? { prediction: p, pick: bestMarket } : null;
@@ -128,11 +216,27 @@ const CombinadaModule = (() => {
 
     if (!eligible.length) return null;
 
-    // Ordenar por composite score: value + confianza normalizada
-    const scored = eligible.map(e => ({
+    const filtered = eligible.filter(e => {
+      const odds = e.pick.odds || 0;
+      const leaguePenalty = volatilityPenalty(e.prediction.match);
+      if (leaguePenalty < 0.7) return false;
+      if (odds > 4.0 && e.prediction.confidence < 70) return false;
+      if (odds > 3.5 && e.prediction.confidence < 62) return false;
+      if (odds > 5.0) return false;
+      if (e.pick.market.includes('Empate') && odds > 4.0) return false;
+      return true;
+    });
+    if (!filtered.length) return null;
+
+    // Ordenar por smart score: score profesional multi-factor
+    const scored = filtered.map(e => ({
       ...e,
-      compositeScore: (e.pick.value * 0.6) + (e.prediction.confidence / 100 * 0.4),
-    })).sort((a, b) => b.compositeScore - a.compositeScore);
+      smart: smartScore(e),
+      risk: riskIndex(e),
+    })).filter(e => e.risk <= 0.7)
+      .sort((a, b) => b.smart - a.smart);
+
+    if (!scored.length) return null;
 
     // Seleccionar sin repetir mismo partido
     const selected = [];
@@ -156,6 +260,7 @@ const CombinadaModule = (() => {
 
     // Calcular cuota y probabilidad total
     const totalOdds = selected.reduce((acc, s) => acc * (s.pick.odds || 1), 1);
+    if (totalOdds > 15) return null;
     const totalProb = selected.reduce((acc, s) => acc * s.pick.prob, 1);
     const impliedProb = 1 / totalOdds;
     const totalValue = totalProb - impliedProb;
@@ -201,10 +306,10 @@ const CombinadaModule = (() => {
       .filter(p => p.confidence >= 62)
       .slice(0, 4);
 
-    // Variante 3: Arriesgada (más picks, más cuota)
+    // Variante 3: Arriesgada (más picks, pero aún controlada)
     const risky = predictions
       .filter(p => p.confidence >= 55)
-      .slice(0, 6);
+      .slice(0, 5);
 
     return {
       conservative: conservative.length >= 2 ? buildCombinada(conservative) : null,

@@ -12,7 +12,7 @@ const MatchesModule = (() => {
   const COL_OFFSET_MS = -5 * 60 * 60 * 1000;
 
   function getColombiaNow() {
-    // Devuelve un Date ajustado a Colombia (UTC-5)
+    // Devuelve un Date ajustado a Colombia (UTC-5) usando la fecha actual del sistema
     return new Date(Date.now() + COL_OFFSET_MS);
   }
 
@@ -120,33 +120,23 @@ const MatchesModule = (() => {
         logo: `https://sports.bzzoiro.com/img/league/${f.league_id}/`,
       },
       home: {
+        id: f.home_team_id,
         name: f.home_team,
         logo: `https://sports.bzzoiro.com/img/team/${f.home_team_id}/`,
       },
       away: {
+        id: f.away_team_id,
         name: f.away_team,
         logo: `https://sports.bzzoiro.com/img/team/${f.away_team_id}/`,
       },
       goals: { home: f.home_score, away: f.away_score },
 
-      // Heurística base (por si la API no tiene stats reales)
-      stats: {
-        homeGoalsFor: +(Math.random() * 1.5 + 0.8).toFixed(1),
-        homeGoalsAgainst: +(Math.random() * 1.5 + 0.8).toFixed(1),
-        awayGoalsFor: +(Math.random() * 1.5 + 0.8).toFixed(1),
-        awayGoalsAgainst: +(Math.random() * 1.5 + 0.8).toFixed(1),
-        xgHome: null,
-        xgAway: null
-      },
-      // Cuotas base (por si la API no tiene cuotas reales)
-      odds: {
-        home: +(Math.random() * 2.5 + 1.5).toFixed(2),
-        draw: +(Math.random() * 1.5 + 2.8).toFixed(2),
-        away: +(Math.random() * 3 + 2.0).toFixed(2),
-        isReal: false
-      },
-      form: { home: 'WWDWL', away: 'LWWDW' },
-      tablePos: { home: Math.floor(Math.random() * 10) + 1, away: Math.floor(Math.random() * 10) + 1 },
+      // Stats vacías — se llenan con datos reales al hacer clic
+      stats: { homeGoalsFor: null, homeGoalsAgainst: null, awayGoalsFor: null, awayGoalsAgainst: null, xgHome: null, xgAway: null },
+      odds:  { home: null, draw: null, away: null, over25: null, under25: null, bttsYes: null, isReal: false },
+      mlPrediction: null,   // se llena con /prediction/
+      form: { home: '', away: '' },
+      tablePos: { home: null, away: null },
       h2h: []
     };
   }
@@ -165,9 +155,44 @@ const MatchesModule = (() => {
   async function fetchMatchOdds(eventId) {
     try {
       const data = await fetchFromAPI(`events/${eventId}/odds`);
-      return data && data.odds ? data.odds : null;
-    } catch (e) {
-      console.warn('No odds for', eventId);
+      if (!data || !data.odds) return null;
+      return {
+        home:    data.odds.home_win,
+        draw:    data.odds.draw,
+        away:    data.odds.away_win,
+        over25:  data.odds.over_25_goals,
+        under25: data.odds.under_25_goals,
+        bttsYes: data.odds.btts_yes,
+        bttsNo:  data.odds.btts_no,
+        isReal:  true,
+      };
+    } catch(e) {
+      console.warn('No odds for', eventId, e.message);
+      return null;
+    }
+  }
+
+  async function fetchMatchPrediction(eventId) {
+    try {
+      const data = await fetchFromAPI(`events/${eventId}/prediction`);
+      if (!data || !data.markets) return null;
+      return {
+        probHome:   data.markets.match_result?.prob_home  / 100,
+        probDraw:   data.markets.match_result?.prob_draw  / 100,
+        probAway:   data.markets.match_result?.prob_away  / 100,
+        xgHome:     data.markets.expected_goals?.home,
+        xgAway:     data.markets.expected_goals?.away,
+        probOver25: data.markets.over_under?.prob_over_25 / 100,
+        probBtts:   data.markets.btts?.prob_yes           / 100,
+        likelyScore: data.markets.score?.most_likely,      // ej: "2-1"
+        confidence:  data.model?.confidence,               // 0-1
+        predicted:   data.markets.match_result?.predicted, // "H"|"D"|"A"
+        betFavorite: data.recommendations?.bet_favorite,
+        over25Rec:   data.recommendations?.over_25,
+        bttsRec:     data.recommendations?.btts,
+      };
+    } catch(e) {
+      console.warn('No prediction for', eventId, e.message);
       return null;
     }
   }
@@ -213,17 +238,18 @@ const MatchesModule = (() => {
       }
 
       // Filtrar SOLO partidos dentro del día Colombia
+      const now = new Date();
       const inColombiaDay = allResults.filter(f => {
         const t = new Date(f.event_date).getTime();
-        return t >= colStart && t <= colEnd;
+        return t >= colStart && t <= colEnd && f.status === 'notstarted' && new Date(f.event_date) > now;
       });
 
       console.log(`[API] Colombia ${dateStr}: ${inColombiaDay.length} partidos (de ${allResults.length} UTC totales)`);
 
       if (inColombiaDay.length === 0) {
-        const demo = generateDemoMatches(dateOffset);
-        CACHE[cacheKey] = demo;
-        return demo;
+        console.log(`[API] No hay partidos para ${dateStr} en la API`);
+        CACHE[cacheKey] = [];
+        return [];
       }
 
       // Resolver nombres de ligas desconocidas ANTES de normalizar
@@ -245,10 +271,8 @@ const MatchesModule = (() => {
       CACHE[cacheKey] = matches;
       return matches;
     } catch (e) {
-      console.warn('Bzzoiro API falló, usando demo:', e.message);
-      const demo = generateDemoMatches(dateOffset);
-      CACHE[cacheKey] = demo;
-      return demo;
+      console.warn('Bzzoiro API falló, no hay datos disponibles:', e.message);
+      return []; // En producción, no usar demo
     }
   }
 
@@ -276,5 +300,5 @@ const MatchesModule = (() => {
     return demos;
   }
 
-  return { getMatches, getDateStr, fetchMatchStats, fetchMatchOdds };
+  return { getMatches, getDateStr, fetchMatchStats, fetchMatchOdds, fetchMatchPrediction };
 })();

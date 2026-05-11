@@ -99,6 +99,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         loadedMatches = await MatchesModule.getMatches(currentDayOffset);
 
+        // Fetch odds para todos los partidos en paralelo para tener data real para combinada
+        const oddsPromises = loadedMatches.map(match => MatchesModule.fetchMatchOdds(match.id));
+        const oddsResults = await Promise.allSettled(oddsPromises);
+        oddsResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value) {
+            loadedMatches[index].odds = result.value;
+          }
+        });
+
         if (loadedMatches.length === 0) {
             matchListContainer.innerHTML = '<li class="loading">No hay partidos para este día.</li>';
             return;
@@ -152,23 +161,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.classList.add('active');
                 predictionPanel.innerHTML = '<div class="loading">Consultando datos en vivo...</div>';
 
-                const [stats, odds] = await Promise.all([
-                    MatchesModule.fetchMatchStats(match.id),
+                const [prediction, odds] = await Promise.all([
+                    MatchesModule.fetchMatchPrediction(match.id),
                     MatchesModule.fetchMatchOdds(match.id)
                 ]);
 
-                if (stats) {
-                    if (stats.home?.xg?.actual != null) match.stats.xgHome = stats.home.xg.actual;
-                    if (stats.away?.xg?.actual != null) match.stats.xgAway = stats.away.xg.actual;
-                }
-                if (odds?.home_win != null) {
-                    match.odds.home   = odds.home_win;
-                    match.odds.draw   = odds.draw;
-                    match.odds.away   = odds.away_win;
-                    match.odds.isReal = true;
+                if (prediction) match.mlPrediction = prediction;
+                if (odds) {
+                    match.odds = odds;
+                    // También tomar xG de la predicción ML
+                    if (prediction?.xgHome != null) {
+                        match.stats.xgHome = prediction.xgHome;
+                        match.stats.xgAway = prediction.xgAway;
+                    }
                 }
 
-                renderPrediction(match, true); // true = clic manual → llama a Gemini
+                renderPrediction(match, true);
             });
 
             matchListContainer.appendChild(li);

@@ -270,11 +270,18 @@ const PredictorModule = (() => {
     return Math.min(95, Math.max(30, +confidence.toFixed(1)));
   }
 
+  // ── Función auxiliar para cuotas fallback ───────────────────
+  function fallbackOdds(probability) {
+    if (!probability || probability <= 0) return 1.8;
+    const implied = 1 / Math.max(0.12, probability);
+    return Math.min(4.5, Math.max(1.45, implied * 0.92));
+  }
+
   // ── Determinar mejor pick ────────────────────────────────
   function getBestPick(probs, odds, homeScore, awayScore) {
     const candidates = [
-      { market: '1 (Local)', prob: probs.home, odd: odds?.home, label: 'home' },
-      { market: 'X (Empate)', prob: probs.draw, odd: odds?.draw, label: 'draw' },
+      { market: '1 (Local)', prob: probs.home, odd: odds?.home || fallbackOdds(probs.home), label: 'home' },
+      { market: 'X (Empate)', prob: probs.draw, odd: odds?.draw || fallbackOdds(probs.draw), label: 'draw' },
       { market: '2 (Visitante)', prob: probs.away, odd: odds?.away, label: 'away' },
     ];
 
@@ -328,19 +335,54 @@ const PredictorModule = (() => {
 
   // ── Función principal ────────────────────────────────────
   function predict(match) {
-    const { homeScore, awayScore } = calculateScores(match);
-    const probs        = calc1X2(homeScore, awayScore);
-    const ou           = calcOverUnder(match.stats);
-    const btts         = calcBTTS(match.stats);
-    const dc           = calcDoubleChance(probs);
-    const corners      = calcCorners(match.stats);
-    const confidence   = calcConfidence(probs, homeScore, awayScore);
-    const bestPick     = getBestPick(probs, match.odds, homeScore, awayScore);
-    const h2hSummary   = summarizeH2H(match.h2h, match.home?.name, match.away?.name);
+    const ml = match.mlPrediction;
 
-    // Marcadores coherentes con el pronóstico elegido
-    const predictedOutcome = bestPick?.label || null; // 'home' | 'draw' | 'away'
-    const likelyScores     = calcMostLikelyScores(homeScore, awayScore, predictedOutcome);
+    let probs, xgHome, xgAway;
+
+    if (ml && ml.probHome != null) {
+      // PRIORIDAD 1: ML de bzzoiro (CatBoost entrenado con datos reales)
+      probs  = { home: +ml.probHome, draw: +ml.probDraw, away: +ml.probAway };
+      xgHome = +ml.xgHome || null;
+      xgAway = +ml.xgAway || null;
+    } else if (match.odds?.isReal) {
+      // PRIORIDAD 2: probabilidades implícitas de cuotas reales
+      const raw = { h: 1/match.odds.home, d: 1/match.odds.draw, a: 1/match.odds.away };
+      const margin = raw.h + raw.d + raw.a;
+      probs  = { home: raw.h/margin, draw: raw.d/margin, away: raw.a/margin };
+      xgHome = null; xgAway = null;
+    } else {
+      // Sin datos reales: marcar como no confiable
+      probs  = { home: 0.40, draw: 0.28, away: 0.32 };
+      xgHome = null; xgAway = null;
+    }
+
+    // Usar xG de la API para Over/Under y BTTS si disponible
+    const ou   = ml?.probOver25 != null
+      ? { over: +ml.probOver25, under: 1 - (+ml.probOver25), expectedGoals: (xgHome||0) + (xgAway||0) }
+      : calcOverUnder(match.stats);
+
+    const btts = ml?.probBtts != null
+      ? { yes: +ml.probBtts, no: 1 - (+ml.probBtts) }
+      : calcBTTS(match.stats);
+
+    // Confianza: usar la del modelo si existe, sino calcular
+    const confidence = ml?.confidence != null
+      ? Math.round(+ml.confidence * 100)
+      : calcConfidence(probs, probs.home * 3, probs.away * 3);
+
+    // Marcador probable: usar el de la API si existe
+    let likelyScores = [];
+    if (ml?.likelyScore) {
+      const [h, a] = ml.likelyScore.split('-').map(Number);
+      likelyScores = [{ home: h, away: a, prob: null }];
+    }
+    // Completar con Poisson si hay xG
+    if (xgHome && xgAway) {
+      likelyScores = calcMostLikelyScores(xgHome, xgAway, null, 3);
+    }
+
+    const dc       = calcDoubleChance(probs);
+    const bestPick = getBestPick(probs, match.odds, probs.home * 3, probs.away * 3);
 
     // Valores de cuota
     const homeValue = calcValue(probs.home, match.odds?.home);
@@ -350,21 +392,15 @@ const PredictorModule = (() => {
 
     return {
       match,
-      scores: { home: +homeScore.toFixed(3), away: +awayScore.toFixed(3) },
+      scores: { home: xgHome, away: xgAway },
       probs,
       dc,
       ou,
       btts,
-      corners,
       likelyScores,
       confidence,
       bestPick,
-      h2hSummary,
       values: { home: homeValue, draw: drawValue, away: awayValue, over: overValue },
-      formAnalysis: {
-        home: analyzeForm(match.form?.home || ''),
-        away: analyzeForm(match.form?.away || ''),
-      },
     };
   }
 
