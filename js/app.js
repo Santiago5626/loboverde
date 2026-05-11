@@ -31,7 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Navegación ───────────────────────────────────────────
     if (mobileNavToggle) {
         mobileNavToggle.addEventListener('click', () => {
-            sidebarContent.classList.toggle('show');
+            if (window.innerWidth <= 900) {
+                sidebarContent.classList.toggle('show');
+            } else {
+                document.querySelector('.app-container')?.classList.toggle('sidebar-expanded');
+            }
         });
     }
 
