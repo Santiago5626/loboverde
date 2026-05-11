@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>El Lobo Verde — Smart Sports Analytics</title>
+
+    <meta name="description"
+        content="IA deportiva, análisis estadístico y combinadas inteligentes para apostadores estratégicos." />
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+    <link rel="stylesheet" href="css/style.css" />
+
+    <style>
+        :root {
+            --bg: #050505;
+            --card: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.08);
+
+            --green: #39ff14;
+            --green-soft: rgba(57, 255, 20, 0.15);
+
+            --gold: #d4af37;
+
+            --white: #ffffff;
+            --silver: #b8b8b8;
+
+            --shadow:
+                0 10px 30px rgba(0, 0, 0, .45);
+
+            --radius: 22px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background:
+                radial-gradient(circle at top,
+                    rgba(57, 255, 20, .10),
+                    transparent 30%),
+                radial-gradient(circle at bottom right,
+                    rgba(57, 255, 20, .05),
+                    transparent 25%),
+                #050505;
+
+            color: var(--white);
+
+            min-height: 100vh;
+
+            overflow-x: hidden;
+        }
+
+        /* =========================
+           BACKGROUND FX
+        ========================= */
+
+        .background-glow {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+
+            background:
+                radial-gradient(circle at 20% 20%,
+                    rgba(57, 255, 20, .08),
+                    transparent 25%),
+
+                radial-gradient(circle at 80% 0%,
+                    rgba(57, 255, 20, .04),
+                    transparent 20%);
+        }
+
+        .noise {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            opacity: .03;
+            background-image:
+                url("https://www.transparenttextures.com/patterns/asfalt-dark.png");
+        }
+
+        /* =========================
+           MAIN CONTAINER
+        ========================= */
+
+        .landing-page {
+            padding: 2rem 1rem 5rem;
+        }
+
+        .landing-container {
+            width: 100%;
+            max-width: 900px;
+            margin: auto;
+
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* =========================
+           HERO
+        ========================= */
+
+        .hero {
+            text-align: center;
+            padding-top: 1rem;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+
+            padding: .5rem 1rem;
+
+            border-radius: 999px;
+
+            background: rgba(57, 255, 20, .08);
+
+            border: 1px solid rgba(57, 255, 20, .2);
+
+            color: var(--green);
+
+            font-size: .85rem;
+            font-weight: 600;
+
+            margin-bottom: 1.5rem;
+
+            backdrop-filter: blur(10px);
+        }
+
+        .landing-logo {
+            width: 140px;
+            height: 140px;
+
+            object-fit: cover;
+
+            border-radius: 50%;
+
+            border: 2px solid var(--green);
+
+            padding: 10px;
+
+            background: rgba(255, 255, 255, .03);
+
+            backdrop-filter: blur(12px);
+
+            box-shadow:
+                0 0 25px rgba(57, 255, 20, .20);
+
+            animation: pulseGlow 4s infinite;
+
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes pulseGlow {
+            0% {
+                box-shadow: 0 0 20px rgba(57, 255, 20, .15);
+            }
+
+            50% {
+                box-shadow: 0 0 45px rgba(57, 255, 20, .35);
+            }
+
+            100% {
+                box-shadow: 0 0 20px rgba(57, 255, 20, .15);
+            }
+        }
+
+        .landing-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+
+            line-height: 1.1;
+
+            margin-bottom: .8rem;
+        }
+
+        .landing-subtitle {
+            color: var(--silver);
+
+            font-size: 1rem;
+
+            line-height: 1.6;
+
+            max-width: 500px;
+
+            margin: auto auto 1.5rem;
+        }
+
+        .hero-highlight {
+            color: var(--green);
+        }
+
+        /* =========================
+           STATS
+        ========================= */
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+
+            margin-top: 2rem;
+        }
+
+        .stat-box {
+            background: var(--card);
+
+            border: 1px solid var(--border);
+
+            border-radius: 18px;
+
+            padding: 1rem;
+
+            backdrop-filter: blur(12px);
+
+            box-shadow: var(--shadow);
+        }
+
+        .stat-box span {
+            display: block;
+
+            font-size: 1.4rem;
+            font-weight: 800;
+
+            color: var(--green);
+
+            margin-bottom: .25rem;
+        }
+
+        .stat-box small {
+            color: var(--silver);
+            font-size: .8rem;
+        }
+
+        /* =========================
+           LIVE SCANNER
+        ========================= */
+
+        .scanner {
+            position: relative;
+
+            background:
+                linear-gradient(135deg,
+                    rgba(57, 255, 20, .10),
+                    rgba(57, 255, 20, .04));
+
+            border: 1px solid rgba(57, 255, 20, .15);
+
+            border-radius: var(--radius);
+
+            padding: 1.2rem;
+
+            overflow: hidden;
+
+            box-shadow:
+                0 0 30px rgba(57, 255, 20, .10);
+        }
+
+        .scanner::before {
+            content: '';
+
+            position: absolute;
+
+            top: 0;
+            left: 0;
+
+            width: 4px;
+            height: 100%;
+
+            background: var(--green);
+        }
+
+        .scanner-title {
+            color: var(--green);
+
+            font-weight: 700;
+
+            margin-bottom: .8rem;
+
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+        .scanner-content {
+            display: flex;
+            flex-direction: column;
+            gap: .5rem;
+        }
+
+        .scanner-match {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .scanner-pick {
+            color: var(--silver);
+        }
+
+        .scanner-confidence {
+            color: var(--gold);
+            font-weight: 700;
+        }
+
+        /* =========================
+           AD BANNER
+        ========================= */
+
+        .ad-banner {
+            width: 100%;
+
+            border-radius: var(--radius);
+
+            overflow: hidden;
+
+            border: 1px solid var(--border);
+
+            box-shadow: var(--shadow);
+
+            transition: .3s ease;
+        }
+
+        .ad-banner:hover {
+            transform: translateY(-3px);
+        }
+
+        .ad-banner img {
+            width: 100%;
+            display: block;
+        }
+
+        /* =========================
+           BUTTONS
+        ========================= */
+
+        .links-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .link-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .8rem;
+
+            text-decoration: none;
+
+            padding: 1rem 1.2rem;
+
+            background: var(--card);
+
+            border: 1px solid var(--border);
+
+            border-radius: 18px;
+
+            color: white;
+
+            font-weight: 700;
+
+            transition: .3s ease;
+
+            backdrop-filter: blur(12px);
+
+            box-shadow: var(--shadow);
+        }
+
+        .link-btn:hover {
+            transform: translateY(-3px);
+
+            border-color: rgba(57, 255, 20, .25);
+
+            background: rgba(255, 255, 255, .07);
+        }
+
+        .link-btn i {
+            font-size: 1.1rem;
+        }
+
+        .vip-btn {
+            background:
+                linear-gradient(135deg,
+                    rgba(212, 175, 55, .12),
+                    rgba(212, 175, 55, .04));
+
+            border-color: rgba(212, 175, 55, .25);
+
+            color: var(--gold);
+        }
+
+        .vip-btn:hover {
+            box-shadow:
+                0 0 20px rgba(212, 175, 55, .20);
+        }
+
+        /* =========================
+           FREE PICK
+        ========================= */
+
+        .free-pick-container {
+            background: var(--card);
+
+            border: 1px solid rgba(57, 255, 20, .20);
+
+            border-radius: var(--radius);
+
+            padding: 1.5rem;
+
+            backdrop-filter: blur(14px);
+
+            box-shadow:
+                0 0 30px rgba(57, 255, 20, .08);
+        }
+
+        .free-pick-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .free-pick-header h3 {
+            color: var(--green);
+
+            margin-bottom: .4rem;
+
+            font-size: 1.2rem;
+        }
+
+        .free-pick-header p {
+            color: var(--silver);
+            font-size: .95rem;
+        }
+
+        .pick-match {
+            font-size: 1.2rem;
+            font-weight: 700;
+
+            margin-bottom: .5rem;
+        }
+
+        .pick-market {
+            color: var(--silver);
+
+            margin-bottom: 1rem;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 10px;
+
+            background: rgba(255, 255, 255, .05);
+
+            border-radius: 999px;
+
+            overflow: hidden;
+
+            margin-bottom: 1rem;
+        }
+
+        .confidence-fill {
+            width: 82%;
+            height: 100%;
+
+            background:
+                linear-gradient(90deg,
+                    #39ff14,
+                    #8fff7a);
+        }
+
+        .pick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .5rem;
+        }
+
+        .pick-tags span {
+            padding: .4rem .8rem;
+
+            border-radius: 999px;
+
+            background: rgba(57, 255, 20, .08);
+
+            border: 1px solid rgba(57, 255, 20, .15);
+
+            color: var(--green);
+
+            font-size: .8rem;
+            font-weight: 600;
+        }
+
+        /* =========================
+           FEATURES
+        ========================= */
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .feature-card {
+            background: var(--card);
+
+            border: 1px solid var(--border);
+
+            border-radius: 20px;
+
+            padding: 1.2rem;
+
+            backdrop-filter: blur(10px);
+
+            transition: .3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+
+            border-color: rgba(57, 255, 20, .20);
+        }
+
+        .feature-card i {
+            font-size: 1.4rem;
+
+            color: var(--green);
+
+            margin-bottom: .8rem;
+        }
+
+        .feature-card h4 {
+            margin-bottom: .5rem;
+        }
+
+        .feature-card p {
+            color: var(--silver);
+
+            font-size: .92rem;
+
+            line-height: 1.5;
+        }
+
+        /* =========================
+           FOOTER
+        ========================= */
+
+        footer {
+            text-align: center;
+
+            color: #666;
+
+            font-size: .85rem;
+
+            padding-top: 1rem;
+        }
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media(max-width: 600px) {
+
+            .landing-title {
+                font-size: 2rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body class="landing-page">
+
+    <div class="background-glow"></div>
+    <div class="noise"></div>
+
+    <main class="landing-container">
+
+        <!-- HERO -->
+        <section class="hero">
+            <img src="assets/logo.png" alt="El Lobo Verde" class="landing-logo" />
+            <h1 class="landing-title">
+                Convierte datos en
+                <span class="hero-highlight">apuestas inteligentes</span>
+            </h1>
+            <p class="landing-subtitle">
+                Análisis estadístico, apuestas combinadas y gestión profesional de tu capital.
+            </p>
+
+            <div class="stats-row">
+                <div class="stat-box">
+                    <span>+78%</span>
+                    <small>Precisión Histórica</small>
+                </div>
+                <div class="stat-box">
+                    <span>24/7</span>
+                    <small>Análisis en Vivo</small>
+                </div>
+            </div>
+        </section>
+
+        <!-- BANNER -->
+        <a href="https://wa.me/TUNUMERO" target="_blank" class="ad-banner">
+            <img src="assets/image.png" alt="Promoción VIP" />
+        </a>
+
+        <!-- GRID COMPACTO: Botones y Pick -->
+        <div
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; width: 100%;">
+
+            <!-- BUTTONS -->
+            <section class="links-grid">
+                <a href="https://chat.whatsapp.com/Ck9ivSgHnWT00iJ6qhJDE8" class="link-btn" target="_blank">
+                    <i class="fa-brands fa-whatsapp"></i> Grupo Gratis WhatsApp
+                </a>
+                <a href="#" class="link-btn">
+                    <i class="fa-brands fa-instagram"></i> Instagram Oficial
+                </a>
+                <a href="#" class="link-btn">
+                    <i class="fa-brands fa-facebook"></i> Facebook
+                </a>
+                <a href="https://w.app/c3xt8u" class="link-btn vip-btn" target="_blank">
+                    <i class="fa-solid fa-crown"></i> Acceder al VIP Premium
+                </a>
+            </section>
+
+            <!-- FREE PICK -->
+            <section class="free-pick-container">
+                <div class="free-pick-header">
+                    <h3><i class="fa-solid fa-ticket" style="margin-right:0.5rem; color:var(--green);"></i>Pronóstico Gratuito del Día</h3>
+                    <p>Calculado por El Lobo Verde</p>
+                </div>
+                <div id="landing-pick-content">
+                    <div class="loading" style="text-align:center;">Analizando el mercado de hoy...</div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- FEATURES -->
+        <section class="features" style="margin-top: 1rem;">
+            <div class="feature-card">
+                <i class="fa-solid fa-chart-line"></i>
+                <h4>Análisis Estadístico</h4>
+                <p>Modelos matemáticos para detectar valor real.</p>
+            </div>
+            <div class="feature-card">
+                <i class="fa-solid fa-layer-group"></i>
+                <h4>Combinadas</h4>
+                <p>Apuestas múltiples optimizadas sin correlaciones negativas.</p>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer>
+            © 2026 El Lobo Verde — Análisis Deportivo Profesional
+        </footer>
+
+    </main>
+
+    <!-- Scripts -->
+    <script src="js/matches.js"></script>
+    <script src="js/predictor.js"></script>
+    <script src="js/combinada.js"></script>
+    <script src="js/landing.js"></script>
+
+</body>
+
+</html>

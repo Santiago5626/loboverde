@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard VIP - El Lobo Verde</title>
+    <meta name="description" content="Panel privado de análisis deportivo El Lobo Verde.">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="background-glow"></div>
+    
+    <div class="app-container">
+        <!-- Sidebar / Header -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="assets/logo.png" alt="Logo El Lobo Verde" class="logo" onerror="this.src='assets/image.png'">
+                <div>
+                    <h1>El Lobo Verde</h1>
+                    <span class="logo-subtitle">VIP Dashboard</span>
+                </div>
+                <button class="mobile-nav-toggle" id="mobile-nav-toggle">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="sidebar-content" id="sidebar-content">
+                <nav class="nav-menu">
+                    <button class="nav-btn active" data-tab="matches">Partidos</button>
+                    <button class="nav-btn" data-tab="combinadas">Combinada Inteligente</button>
+                </nav>
+
+                <div class="social-links">
+                    <p>Comunidad</p>
+                    <a href="https://chat.whatsapp.com/Ck9ivSgHnWT00iJ6qhJDE8" class="social-btn" target="_blank">WhatsApp Free</a>
+                    <a href="https://w.app/c3xt8u" class="social-btn vip" target="_blank">WhatsApp VIP</a>
+                    <a href="#" class="social-btn">Instagram</a>
+                    <a href="#" class="social-btn">Facebook</a>
+                </div>
+
+                <div class="status-panel">
+                    <p>Status API: <span class="status-dot green"></span> Conectado</p>
+                    <p id="current-date-display"></p>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Partidos View -->
+            <section id="matches-section" class="view-section active">
+                <div class="matches-layout">
+                    <div class="matches-list glass-panel">
+                        <h2>Partidos</h2>
+                        <div class="calendar-nav">
+                            <button id="cal-prev" class="cal-btn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            </button>
+                            <div class="cal-current" id="cal-current-date">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                <span>HOY</span>
+                            </div>
+                            <button id="cal-next" class="cal-btn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="match-search" placeholder="Buscar equipo o liga..." autocomplete="off">
+                        </div>
+                        <div class="search-box" style="margin-top:0.4rem;">
+                            <select id="league-filter">
+                                <option value="">Todas las ligas</option>
+                            </select>
+                        </div>
+                        <ul id="match-list-container" class="match-list">
+                            <li class="loading">Cargando partidos...</li>
+                        </ul>
+                    </div>
+
+                    <div class="match-details glass-panel" id="prediction-panel">
+                        <div class="placeholder-msg">
+                            <div class="icon-pulse"></div>
+                            <p>Selecciona un partido de la lista para analizar estadísticas y valor.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Combinadas View -->
+            <section id="combinadas-section" class="view-section hidden">
+                <div class="glass-panel combinada-panel">
+                    <div class="combinada-header">
+                        <h2>Generador de Combinadas</h2>
+                        <button class="action-btn-small" id="refresh-parlays">Actualizar Picks</button>
+                    </div>
+                    <p class="subtitle">Algoritmo con correlación de valor y Criterio Kelly</p>
+                    
+                    <div class="parlay-options" id="parlay-container">
+                        <div class="loading">Calculando las mejores opciones del mercado...</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/matches.js"></script>
+    <script src="js/predictor.js"></script>
+    <script src="js/combinada.js"></script>
+    <script src="js/gemini.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
